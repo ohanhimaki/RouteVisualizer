@@ -2,9 +2,11 @@
 using System.IO;
 using System.Text;
 using System.Xml;
+using System.Drawing;
 using System.Xml.Serialization;
 using RouteVisualizer.Classes;
 using System.Linq;
+//using static System.Net.Mime.MediaTypeNames;
 
 namespace RouteVisualizer {
     class Program {
@@ -46,6 +48,47 @@ namespace RouteVisualizer {
             Console.WriteLine(minLat + " " + maxLon);
             Console.WriteLine(maxLat + " " + minLon);
             Console.WriteLine(minLat + " " + minLon);
+
+            var size = 300;
+            var padding = 30;
+
+            var bitmap = new Bitmap(size+padding, size+padding);
+            Graphics g = Graphics.FromImage(bitmap);
+            
+            
+
+            var biggermultiplier = (maxLat - minLat > maxLon - minLon) ? maxLat - minLat : maxLon - minLon;
+            var multiplier =  (size-1) / biggermultiplier;
+            
+
+            var testlocation = (int)((maxLat - minLat) * multiplier);
+
+            //bitmap.SetPixel(10, 10, Color.BlueViolet);
+            //bitmap.SetPixel(10+ testlocation, 10, Color.BlueViolet);
+            //bitmap.SetPixel(10, 10, Color.BlueViolet);
+            //bitmap.SetPixel(10, 10, Color.BlueViolet);
+
+            Pen blackPen = new Pen(Color.Black);
+
+            foreach (TrainingCenterDatabaseActivitiesActivityLapTrackpoint track in  i.Activities.Activity.Lap.Track)
+            {
+                if(track.Position != null)
+                {
+
+                    g.DrawEllipse(blackPen, (int)(padding/2)+(int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), 4,4);
+                    //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
+                    //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
+                }
+            }
+
+
+            bitmap.Save("m.bmp");
+            // Create image.
+            //Image newImage = System.Drawing.Image.FromFile
+
+            // Create point for upper-left corner of image.
+            //PointF ulCorner = new PointF(100.0F, 100.0F);
+
 
 
 
