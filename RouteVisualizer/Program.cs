@@ -12,13 +12,15 @@ using FFMediaToolkit.Encoding;
 using FFMediaToolkit.Graphics;
 using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
+using System.Net;
+using System.Globalization;
 
 namespace RouteVisualizer {
     class Program {
         static void Main (string[] args) {
-            //string testifilu = @"C:\coding\RouteVisualizer\testifilut\20200530T1640300300PT1H24M56.099SPyoraily.tcx";
-            string testifilu = @"C:\coding\RouteVisualizer\testifilut\2020-06-14T1508340300PT1H57M49905SPyoraily - Copy.tcx";
-        
+            string testifilu = @"C:\coding\RouteVisualizer\testifilut\20200530T1640300300PT1H24M56.099SPyoraily.tcx";
+            //string testifilu = @"C:\coding\RouteVisualizer\testifilut\2020-06-14T1508340300PT1H57M49905SPyoraily - Copy.tcx";
+  
             TrainingCenterDatabase TrainingCenterDatabase = new TrainingCenterDatabase();
 
             string fullFile = "";
@@ -58,15 +60,53 @@ namespace RouteVisualizer {
 
             var size = 300;
             var padding = 30;
+          
 
-            var bitmap = new Bitmap(size+padding, size+padding);
+            var totalLat = maxLat - minLat;
+            var totalLon = maxLon / 2 - minLon / 2;
+
+
+            decimal multiplier;
+            decimal lonMultiplier;
+            decimal latMultiplier;
+            decimal centerLon = maxLat - (totalLat/2)*(decimal)1.1;
+            decimal centerLat = maxLon - (totalLon); 
+            NumberFormatInfo nfi = new NumberFormatInfo();
+            nfi.NumberDecimalSeparator = ".";
+            var zoomLevel = 11.43;
+
+
+            string openboxApiUrl = String.Format(@"https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/{0},{1},{2},0,0/330x330?access_token={3}", 
+                centerLat.ToString(nfi), centerLon.ToString(nfi), zoomLevel.ToString(nfi), args[0]);
+
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(new Uri(openboxApiUrl), @"C:\coding\RouteVisualizer\testifilut\image35.png");
+                // OR 
+                //client.DownloadFileAsync(new Uri(openboxApiUrl), @"c:\temp\image35.png");
+            }
+
+
+            var bitmap = new Bitmap(size + padding, size + padding);
             Graphics g = Graphics.FromImage(bitmap);
-            
-            
 
-            var biggermultiplier = (maxLat - minLat > maxLon - minLon) ? maxLat - minLat : maxLon - minLon;
-            var multiplier =  (size-1) / biggermultiplier;
-            
+            var taustakuva = Image.FromFile(@"C:\coding\RouteVisualizer\testifilut\image35.png");
+
+            g.DrawImage(taustakuva, 0, 0);
+
+            if (totalLat > totalLon)
+            {
+                multiplier= (size - 1) / totalLat;
+                lonMultiplier = totalLat / totalLon;
+                latMultiplier = 1;
+            } else
+            {
+                multiplier = (size - 1) / totalLon;
+                lonMultiplier = 1;
+                latMultiplier = totalLon/ totalLat;
+            }
+
+
 
             var testlocation = (int)((maxLat - minLat) * multiplier);
 
@@ -75,28 +115,50 @@ namespace RouteVisualizer {
             //bitmap.SetPixel(10, 10, Color.BlueViolet);
             //bitmap.SetPixel(10, 10, Color.BlueViolet);
 
-            Pen blackPen = new Pen(Color.Black);
-            Pen redPen = new Pen(Color.Red);
+            Brush blackPen = Brushes.Black;
+            Brush redPen = Brushes.Red; 
+
+            ////Vihreätausta debukkaukseen
+            //var tmpx = 0;
+            //var tmpy = 0;
+            //while (tmpx < size+padding)
+            //{
+            //    tmpy = 0;
+            //    while (tmpy < size+padding)
+            //    {
+
+            //        g.DrawEllipse(new Pen(Color.Green), tmpx, tmpy, 1, 1);
+            //        tmpy  +=1;
+            //    }
+            //    tmpx +=1;
+            //}
+
+      
 
             foreach (TrainingCenterDatabaseActivitiesActivityLapTrackpoint track in  i.Activities.Activity.Lap.Track)
             {
                 if(track.Position != null)
                 {
-                    g.DrawEllipse(blackPen, (int)(padding/2)+(int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), 4,4);
+                    var xCoords = (int)(padding / 2) + (int)(((size*lonMultiplier)-size)/4) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2);
+                    var yCoords =(int)(padding/2 ) + (int)(size*latMultiplier  - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
+                    g.FillEllipse(blackPen, xCoords, yCoords, 4,4);
                     //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
                     //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
                 }
             }
 
 
-            bitmap.Save("m.bmp");
+            //bitmap.Save("m.bmp");
             var i2 = 0;
-            var HeartRateTmp = "1212";
+            var HeartRateTmp = "";
+            var distanceTmp = "";
 
             var startTime = i.Activities.Activity.Lap.StartTime;
-            var endTime = startTime.AddSeconds((int)i.Activities.Activity.Lap.TotalTimeSeconds);
+            var endTime = startTime.AddSeconds(300);
+            //var endTime = startTime.AddSeconds((int)i.Activities.Activity.Lap.TotalTimeSeconds);
+            var filenamePrefix = i.Activities.Activity.Lap.StartTime.ToString("yyyyMMddHHmmss");
 
-            while(startTime < endTime)
+            while (startTime < endTime)
             {
                 TimeSpan span = startTime - endTime;
                 Console.WriteLine(span.TotalSeconds);
@@ -105,20 +167,25 @@ namespace RouteVisualizer {
                 var editbitmap = new Bitmap(bitmap);
                 Graphics gedit = Graphics.FromImage(editbitmap);
 
-                HeartRateTmp = newestTrackpoint.HeartRateBpm?.Value.ToString() ?? HeartRateTmp;
+                HeartRateTmp = newestTrackpoint.HeartRateBpm?.Value.ToString("#") ?? HeartRateTmp;
+                distanceTmp = (newestTrackpoint.DistanceMeters / 1000).ToString("#.##") ?? distanceTmp;
                 if (newestTrackpoint.Position != null)
                 {
 
+                    var xCoords = (int)(padding / 2) + (int)(((size * lonMultiplier) - size) / 4) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / 2);
+                    var yCoords = (int)(padding / 2) + (int)(size * latMultiplier - 1) - (int)((newestTrackpoint.Position.LatitudeDegrees - minLat) * multiplier);
+                    gedit.FillEllipse(redPen, xCoords, yCoords, 8, 8);
 
-                    gedit.DrawEllipse(redPen, (int)(padding / 2) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((newestTrackpoint.Position.LatitudeDegrees - minLat) * multiplier), 8, 8);
+                    //gedit.FillEllipse(redPen, (int)(padding / 2) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((newestTrackpoint.Position.LatitudeDegrees - minLat) * multiplier), 8, 8);
                     gedit.SmoothingMode = SmoothingMode.AntiAlias;
                     gedit.InterpolationMode = InterpolationMode.HighQualityBicubic;
                     gedit.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                    gedit.DrawString(HeartRateTmp, new Font("Tahoma", 18), Brushes.Black, new PointF(18, 18));
+                    gedit.DrawString(HeartRateTmp, new Font("Tahoma", 8), Brushes.Black, new PointF(0, 12));
+                    gedit.DrawString(distanceTmp, new Font("Tahoma", 8), Brushes.Black, new PointF(0, 0));
 
                     //gedit.Flush();
 
-                    editbitmap.Save(string.Format(@"C:\coding\RouteVisualizer\testifilut\testi2\{0}.png", i2));
+                    editbitmap.Save(string.Format(@"C:\coding\RouteVisualizer\testifilut\testi3\{0}-{1}.png", filenamePrefix, i2));
 
                     //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
                     //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
@@ -141,7 +208,7 @@ namespace RouteVisualizer {
             //    {
 
 
-            //        gedit.DrawEllipse(redPen, (int)(padding / 2) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), 8, 8);
+            //        gedit.FillEllipse(redPen, (int)(padding / 2) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), 8, 8);
             //        gedit.SmoothingMode = SmoothingMode.AntiAlias;
             //        gedit.InterpolationMode = InterpolationMode.HighQualityBicubic;
             //        gedit.PixelOffsetMode = PixelOffsetMode.HighQuality;
