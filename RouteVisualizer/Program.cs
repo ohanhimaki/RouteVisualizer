@@ -20,7 +20,7 @@ namespace RouteVisualizer {
         static void Main (string[] args) {
             string testifilu = @"C:\coding\RouteVisualizer\testifilut\20200530T1640300300PT1H24M56.099SPyoraily.tcx";
             //string testifilu = @"C:\coding\RouteVisualizer\testifilut\2020-06-14T1508340300PT1H57M49905SPyoraily - Copy.tcx";
-  
+
             TrainingCenterDatabase TrainingCenterDatabase = new TrainingCenterDatabase();
 
             string fullFile = "";
@@ -69,30 +69,11 @@ namespace RouteVisualizer {
             decimal multiplier;
             decimal lonMultiplier;
             decimal latMultiplier;
-            decimal centerLon = maxLat - (totalLat/2)*(decimal)1.1;
+            decimal centerLon = maxLat - (totalLat/2);
             decimal centerLat = maxLon - (totalLon); 
             NumberFormatInfo nfi = new NumberFormatInfo();
             nfi.NumberDecimalSeparator = ".";
-            var zoomLevel = 11.43;
 
-
-            string openboxApiUrl = String.Format(@"https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/{0},{1},{2},0,0/330x330?access_token={3}", 
-                centerLat.ToString(nfi), centerLon.ToString(nfi), zoomLevel.ToString(nfi), args[0]);
-
-            using (WebClient client = new WebClient())
-            {
-                client.DownloadFile(new Uri(openboxApiUrl), @"C:\coding\RouteVisualizer\testifilut\image35.png");
-                // OR 
-                //client.DownloadFileAsync(new Uri(openboxApiUrl), @"c:\temp\image35.png");
-            }
-
-
-            var bitmap = new Bitmap(size + padding, size + padding);
-            Graphics g = Graphics.FromImage(bitmap);
-
-            var taustakuva = Image.FromFile(@"C:\coding\RouteVisualizer\testifilut\image35.png");
-
-            g.DrawImage(taustakuva, 0, 0);
 
             if (totalLat > totalLon)
             {
@@ -105,6 +86,25 @@ namespace RouteVisualizer {
                 lonMultiplier = 1;
                 latMultiplier = totalLon/ totalLat;
             }
+            decimal multiplierFormMapboxZoom = (decimal)846.074929615;
+            var zoomLevel = multiplier / multiplierFormMapboxZoom;
+            //var zoomLevel = (decimal)10.85;
+
+            string openboxApiUrl = String.Format(@"https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/{0},{1},{2},0,0/300x300?access_token={3}", 
+                centerLat.ToString(nfi), centerLon.ToString(nfi), zoomLevel.ToString(nfi), args[0]);
+
+            using (WebClient client = new WebClient())
+            {
+                client.DownloadFile(new Uri(openboxApiUrl), @"C:\coding\RouteVisualizer\testifilut\image35.png");
+            }
+
+
+            //var bitmap = new Bitmap(size + padding, size + padding);
+            var bitmap = new Bitmap(size , size );
+            Graphics g = Graphics.FromImage(bitmap);
+
+            var taustakuva = Image.FromFile(@"C:\coding\RouteVisualizer\testifilut\image35.png");
+            g.DrawImage(taustakuva, 0, 0);
 
 
 
@@ -139,8 +139,15 @@ namespace RouteVisualizer {
             {
                 if(track.Position != null)
                 {
-                    var xCoords = (int)(padding / 2) + (int)(((size*lonMultiplier)-size)/4) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2);
-                    var yCoords =(int)(padding/2 ) + (int)(size*latMultiplier  - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
+                    //var xCoords = (int)(padding / 2) + (int)(((size*lonMultiplier)-size)/4) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2);
+                    //var yCoords =(int)(padding/2 ) + (int)(size*latMultiplier  - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
+                    //var xCoords = (int)(((size * lonMultiplier) - size) / 4) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / (decimal)2.1);
+                    //var yCoords = (int)(size * latMultiplier - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
+                    var xCoords =   (int)((track.Position.LongitudeDegrees - minLon) * multiplier / (decimal)2.2);
+                    var yCoords =  (int)(size * latMultiplier - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                     g.FillEllipse(blackPen, xCoords, yCoords, 4,4);
                     //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
                     //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
@@ -172,7 +179,7 @@ namespace RouteVisualizer {
                 if (newestTrackpoint.Position != null)
                 {
 
-                    var xCoords = (int)(padding / 2) + (int)(((size * lonMultiplier) - size) / 4) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / 2);
+                    var xCoords = (int)(padding / 2) + (int)(((size * lonMultiplier) - size) / 4) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / (decimal)2.2);
                     var yCoords = (int)(padding / 2) + (int)(size * latMultiplier - 1) - (int)((newestTrackpoint.Position.LatitudeDegrees - minLat) * multiplier);
                     gedit.FillEllipse(redPen, xCoords, yCoords, 8, 8);
 
