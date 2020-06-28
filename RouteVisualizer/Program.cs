@@ -14,6 +14,7 @@ using System.Drawing.Imaging;
 using System.Drawing.Drawing2D;
 using System.Net;
 using System.Globalization;
+using Geolocation;
 
 namespace RouteVisualizer {
     class Program {
@@ -58,19 +59,35 @@ namespace RouteVisualizer {
             Console.WriteLine(maxLat + " " + minLon);
             Console.WriteLine(minLat + " " + minLon);
 
+            var coordminmin = new Coordinate((double)minLat, (double)minLon);
+            var coordminmax = new Coordinate((double)minLat, (double)maxLon);
+            var coordmaxmin = new Coordinate((double)maxLat, (double)minLon);
+            var coordmaxmax = new Coordinate((double)maxLat, (double)maxLon);
+
+            double distancemaxlat = GeoCalculator.GetDistance(coordmaxmax, coordmaxmin, 1, DistanceUnit.Meters);
+            double distanceminlat = GeoCalculator.GetDistance(coordminmax, coordminmin, 1, DistanceUnit.Meters);
+
+            double distancemaxlon = GeoCalculator.GetDistance(coordmaxmax, coordminmax, 3, DistanceUnit.Meters);
+            double distanceminlon = GeoCalculator.GetDistance(coordmaxmin, coordminmin, 3, DistanceUnit.Meters);
+
+
             var size = 300;
             var padding = 30;
           
 
-            var totalLat = maxLat - minLat;
-            var totalLon = maxLon / 2 - minLon / 2;
+            var totalLat = (decimal)distancemaxlat;
+            var totalLon = (decimal)distancemaxlon;
+            var imgRatio = totalLat / totalLon;
+            var totalLatDegrees = maxLat - minLat;
+            var totalLonDegrees = maxLon / 2 - minLon / 2;
+
 
 
             decimal multiplier;
             decimal lonMultiplier;
             decimal latMultiplier;
-            decimal centerLon = maxLat - (totalLat/2);
-            decimal centerLat = maxLon - (totalLon); 
+            decimal centerLon = maxLat - (totalLatDegrees / 2);
+            decimal centerLat = maxLon - (totalLonDegrees); 
             NumberFormatInfo nfi = new NumberFormatInfo();
             nfi.NumberDecimalSeparator = ".";
 
@@ -87,11 +104,13 @@ namespace RouteVisualizer {
                 latMultiplier = totalLon/ totalLat;
             }
             decimal multiplierFormMapboxZoom = (decimal)846.074929615;
-            var zoomLevel = multiplier / multiplierFormMapboxZoom;
-            //var zoomLevel = (decimal)10.85;
+           var zoomLevel = (decimal)11.67;
 
-            string openboxApiUrl = String.Format(@"https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/{0},{1},{2},0,0/300x300?access_token={3}", 
-                centerLat.ToString(nfi), centerLon.ToString(nfi), zoomLevel.ToString(nfi), args[0]);
+
+            string openboxApiUrl = String.Format(@"https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/{0},{1},{2},0,0/{3}x{4}?access_token={5}",
+                centerLat.ToString(nfi), centerLon.ToString(nfi),
+                zoomLevel.ToString(nfi), (int)(size * imgRatio),
+                size, args[0]);
 
             using (WebClient client = new WebClient())
             {
@@ -99,8 +118,7 @@ namespace RouteVisualizer {
             }
 
 
-            //var bitmap = new Bitmap(size + padding, size + padding);
-            var bitmap = new Bitmap(size , size );
+          var bitmap = new Bitmap((int)(size * imgRatio), size );
             Graphics g = Graphics.FromImage(bitmap);
 
             var taustakuva = Image.FromFile(@"C:\coding\RouteVisualizer\testifilut\image35.png");
@@ -108,61 +126,38 @@ namespace RouteVisualizer {
 
 
 
-            var testlocation = (int)((maxLat - minLat) * multiplier);
-
-            //bitmap.SetPixel(10, 10, Color.BlueViolet);
-            //bitmap.SetPixel(10+ testlocation, 10, Color.BlueViolet);
-            //bitmap.SetPixel(10, 10, Color.BlueViolet);
-            //bitmap.SetPixel(10, 10, Color.BlueViolet);
-
+        
             Brush blackPen = Brushes.Black;
-            Brush redPen = Brushes.Red; 
+            Brush redPen = Brushes.Red;
+            Brush greenPen = Brushes.Green;
 
-            ////Vihreätausta debukkaukseen
-            //var tmpx = 0;
-            //var tmpy = 0;
-            //while (tmpx < size+padding)
-            //{
-            //    tmpy = 0;
-            //    while (tmpy < size+padding)
-            //    {
-
-            //        g.DrawEllipse(new Pen(Color.Green), tmpx, tmpy, 1, 1);
-            //        tmpy  +=1;
-            //    }
-            //    tmpx +=1;
-            //}
-
-      
+   
 
             foreach (TrainingCenterDatabaseActivitiesActivityLapTrackpoint track in  i.Activities.Activity.Lap.Track)
             {
                 if(track.Position != null)
                 {
-                    //var xCoords = (int)(padding / 2) + (int)(((size*lonMultiplier)-size)/4) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2);
-                    //var yCoords =(int)(padding/2 ) + (int)(size*latMultiplier  - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
-                    //var xCoords = (int)(((size * lonMultiplier) - size) / 4) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / (decimal)2.1);
-                    //var yCoords = (int)(size * latMultiplier - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
-                    var xCoords =   (int)((track.Position.LongitudeDegrees - minLon) * multiplier / (decimal)2.2);
-                    var yCoords =  (int)(size * latMultiplier - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier);
+                 var tmpMinLon = new Coordinate((double)track.Position.LatitudeDegrees, (double)minLon);
+                    var tmpMinLat = new Coordinate((double)minLat, (double)track.Position.LongitudeDegrees);
+                    var tmpCurrentCoords = new Coordinate((double)track.Position.LatitudeDegrees, (double)track.Position.LongitudeDegrees);
+                    
+                    var xCoords =   (int)((decimal)GeoCalculator.GetDistance(tmpMinLon,tmpCurrentCoords,2,DistanceUnit.Meters)  * multiplier);
+                    var yCoords = (int)( ((decimal)distancemaxlon - (decimal)GeoCalculator.GetDistance(tmpMinLat, tmpCurrentCoords, 2, DistanceUnit.Meters)) * multiplier);
                     g.SmoothingMode = SmoothingMode.AntiAlias;
                     g.InterpolationMode = InterpolationMode.HighQualityBicubic;
                     g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                     g.FillEllipse(blackPen, xCoords, yCoords, 4,4);
-                    //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
-                    //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
-                }
+               }
             }
 
 
-            //bitmap.Save("m.bmp");
             var i2 = 0;
             var HeartRateTmp = "";
             var distanceTmp = "";
 
             var startTime = i.Activities.Activity.Lap.StartTime;
-            var endTime = startTime.AddSeconds(300);
-            //var endTime = startTime.AddSeconds((int)i.Activities.Activity.Lap.TotalTimeSeconds);
+            //var endTime = startTime.AddSeconds(300); //kehitys
+            var endTime = startTime.AddSeconds((int)i.Activities.Activity.Lap.TotalTimeSeconds);
             var filenamePrefix = i.Activities.Activity.Lap.StartTime.ToString("yyyyMMddHHmmss");
 
             while (startTime < endTime)
@@ -178,25 +173,24 @@ namespace RouteVisualizer {
                 distanceTmp = (newestTrackpoint.DistanceMeters / 1000).ToString("#.##") ?? distanceTmp;
                 if (newestTrackpoint.Position != null)
                 {
+                    var tmpMinLon = new Coordinate((double)newestTrackpoint.Position.LatitudeDegrees, (double)minLon);
+                    var tmpMinLat = new Coordinate((double)minLat, (double)newestTrackpoint.Position.LongitudeDegrees);
+                    var tmpCurrentCoords = new Coordinate((double)newestTrackpoint.Position.LatitudeDegrees, (double)newestTrackpoint.Position.LongitudeDegrees);
 
-                    var xCoords = (int)(padding / 2) + (int)(((size * lonMultiplier) - size) / 4) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / (decimal)2.2);
-                    var yCoords = (int)(padding / 2) + (int)(size * latMultiplier - 1) - (int)((newestTrackpoint.Position.LatitudeDegrees - minLat) * multiplier);
-                    gedit.FillEllipse(redPen, xCoords, yCoords, 8, 8);
-
-                    //gedit.FillEllipse(redPen, (int)(padding / 2) + (int)((newestTrackpoint.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((newestTrackpoint.Position.LatitudeDegrees - minLat) * multiplier), 8, 8);
+                    var xCoords = (int)((decimal)GeoCalculator.GetDistance(tmpMinLon, tmpCurrentCoords, 2, DistanceUnit.Meters) * multiplier);
+                    var yCoords = (int)(((decimal)distancemaxlon - (decimal)GeoCalculator.GetDistance(tmpMinLat, tmpCurrentCoords, 2, DistanceUnit.Meters)) * multiplier);
                     gedit.SmoothingMode = SmoothingMode.AntiAlias;
-                    gedit.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    gedit.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                   gedit.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                   gedit.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                   gedit.FillEllipse(greenPen, xCoords, yCoords, 8, 8);
+                    g.FillEllipse(redPen, xCoords, yCoords, 4, 4);
+
                     gedit.DrawString(HeartRateTmp, new Font("Tahoma", 8), Brushes.Black, new PointF(0, 12));
                     gedit.DrawString(distanceTmp, new Font("Tahoma", 8), Brushes.Black, new PointF(0, 0));
 
-                    //gedit.Flush();
-
                     editbitmap.Save(string.Format(@"C:\coding\RouteVisualizer\testifilut\testi3\{0}-{1}.png", filenamePrefix, i2));
 
-                    //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
-                    //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
-                    i2++;
+                   i2++;
                 }
                 Console.WriteLine(startTime);
 
@@ -205,55 +199,7 @@ namespace RouteVisualizer {
 
             }
 
-            //foreach (TrainingCenterDatabaseActivitiesActivityLapTrackpoint track in i.Activities.Activity.Lap.Track)
-            //{
-            //    var editbitmap = new Bitmap(bitmap);
-            //    Graphics gedit = Graphics.FromImage(editbitmap);
 
-            //    HeartRateTmp = track.HeartRateBpm?.Value.ToString() ?? HeartRateTmp;
-            //    if (track.Position != null)
-            //    {
-
-
-            //        gedit.FillEllipse(redPen, (int)(padding / 2) + (int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (int)(padding / 2) + (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), 8, 8);
-            //        gedit.SmoothingMode = SmoothingMode.AntiAlias;
-            //        gedit.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            //        gedit.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            //        gedit.DrawString(HeartRateTmp, new Font("Tahoma", 18), Brushes.Black, new PointF(0, 0));
-
-            //        //gedit.Flush();
-
-            //        editbitmap.Save(string.Format(@"C:\coding\RouteVisualizer\testifilut\testi2\{0}.png",i2));
-
-            //        //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier / 2), (size - 1) - (int)((track.Position.LatitudeDegrees - minLat) * multiplier), Color.BlueViolet);
-            //        //bitmap.SetPixel((int)((track.Position.LongitudeDegrees - minLon) * multiplier/2), (size - 1) - (int)((track.Position.LatitudeDegrees-minLat)*multiplier),  Color.BlueViolet);
-            //        i2++;
-            //    }
-            //}
-
-
-
-            // Create image.
-            //Image newImage = System.Drawing.Image.FromFile
-
-            // Create point for upper-left corner of image.
-            //PointF ulCorner = new PointF(100.0F, 100.0F);
-            //    var writer = new Accord.Video.
-            //    AForge.Video.VideoFileWriter writer = new VideoFileWriter();
-            //    writer.Open("myfile.avi", width, height, 25, VideoCodec.MPEG4, 1000000);
-            //    // ... here you'll need to load your bitmaps
-            //    writer.WriteVideoFrame(image);
-            //}
-            //writer.Close();
-
-
-            //var settings = new VideoEncoderSettings(width: 1920, height: 1080);
-            //var file = new MediaBuilder(@"C:\coding\RouteVisualizer\testifilut\newvideo.mp4").WithVideo(settings).Create();
-            //while (file.Video.FramesCount < 300)
-            //{
-            //    BitmapData bData = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadWrite, bitmap.PixelFormat);
-            //    file.Video.AddFrame(new ImageData(new Span<byte>(), ImagePixelFormat.Bgra32, 1920,1080));
-            //}
 
 
             Console.WriteLine ("Hello World!");
