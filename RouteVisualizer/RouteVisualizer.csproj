@@ -6,6 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Accord.Video" Version="3.8.0" />
+    <PackageReference Include="Accord.Video.FFMPEG.x64" Version="3.8.0" />
+    <PackageReference Include="AForge.Video" Version="2.2.5" />
+    <PackageReference Include="FFMediaToolkit" Version="2.2.1" />
+    <PackageReference Include="Microsoft.NETCore.Portable.Compatibility" Version="1.0.1" />
     <PackageReference Include="System.Drawing.Common" Version="4.7.0" />
     <PackageReference Include="System.Xml.XmlSerializer" Version="4.3.0" />
   </ItemGroup>
